@@ -4,6 +4,7 @@
 
 Session::Session()
 {
+    status = S_NEW;
 }
 
 Session::Session(int socket_id): request(Request(socket_id))
@@ -28,6 +29,7 @@ Session::Session(const Session &src)
 {
     request = src.request;
     response = src.response;
+    status = src.status;
 
     std::time_t now = std::time(0);
     std::srand(now);

@@ -67,7 +67,7 @@ void Session::recieveData()
     {
         request.total_read = 0;
     }
-    ssize_t bytes_read = recv(request.getSocket(), (void *)(request.buffer + request.total_read), request.getBufferLen() - request.total_read, 0);
+    ssize_t bytes_read = recv(request.getSocket(), (void *)(request.buffer + request.total_read), request.getBufferLen() - request.total_read - 1, 0);
     if (bytes_read == 0)
         throw Request::SocketCloseException("connection closed by client");
     else if (bytes_read < 0)

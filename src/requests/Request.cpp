@@ -63,7 +63,7 @@ void Request::parseHeaders() {
     std::string request;
     size_t headerEnd;
 
-    buffer[total_read - 1] = 0;
+    buffer[total_read] = 0;
     request += buffer;
 
     if (request.size() > buffer_length) {

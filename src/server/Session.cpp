@@ -2,15 +2,14 @@
 #include <iostream>
 #include <cstdlib>
 
-Session::Session()
+Session::Session() :  status(S_NEW)
 {
     status = S_NEW;
 }
 
-Session::Session(int socket_id): request(Request(socket_id))
+Session::Session(int socket_id): request(Request(socket_id)), status(S_NEW)
 {
     client_id = socket_id;
-    status = S_NEW;
 	std::time_t now = std::time(0);
 
     _client_socket = socket_id;
@@ -25,12 +24,11 @@ const char* Session::getSessionId() const
     return _sessionId;
 }
 
-Session::Session(const Session &src)
+Session::Session(const Session &src) : status(src.status)
 {
     request = src.request;
     response = src.response;
     status = src.status;
-
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);
@@ -43,9 +41,9 @@ Session::Session(const Session &src)
 
 Session &Session::operator=(const Session &src)
 {
+    status = src.status;
     request = src.request;
     response = src.response;
-
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);
@@ -108,10 +106,8 @@ void Session::sendResponse()
     ssize_t bytes_sent = send(getSocket(), response.getContent(), response.getContentLength(), MSG_DONTWAIT);
 
     if (bytes_sent < 0) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            status = S_DONE;
-            return;
-        }
+        status = S_DONE;
+        return;
     } else {
         response.setContent(bytes_sent);
 

@@ -1,4 +1,12 @@
 #include "Server.hpp"
+#include <signal.h>
+int g_sig = 0;
+
+
+void signal_handler(int sig) {
+  g_sig = sig;
+  signal(SIGINT, SIG_DFL);  // Restore default behavior
+}
 
 Server::Server() {
 }
@@ -31,7 +39,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		client.recieveData();
 		if (client.status == client.S_NEW || client.status == client.S_DONE)
 			client.newRequest(_configs);
-		else if (client.status == client.S_REQUEST) {
+		if (client.status == client.S_REQUEST) {
 			if (client.request.total_read > client.request.getRouteConfig()->body_limit)
 				throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
 			if (client.request.getHeader("Transfer-Encoding") == "chunked") {
@@ -44,7 +52,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 				} catch (const Request::ParsingErrorException& e) {
 					throw;
 				}
-			} else if (client.request.total_read == atoi(client.request.getHeader("content-length").c_str())) {
+			} else if (client.request.total_read >= atoi(client.request.getHeader("content-length").c_str())) {
 				client.status = client.S_PROCESS;
 			}
 			std::cout << "recieved more data" << std::endl;
@@ -197,13 +205,13 @@ void Server::pollLoop() {
 			std::cerr << "Polling error: " << errno << std::endl;
 			_cleanChunkFiles(_fds[i].fd);
 			close(_fds[i].fd);
-			_fds.erase(_fds.begin() + i);
 			_sessions.erase(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
 			if (_fds[i].fd == _main_socketfd)
 				throw PollingErrorException("error from poll() function");
 		}
 		int client_socket = _fds[i].fd;
-		if (_fds[i].revents & POLLIN) {
+		if ((_fds[i].revents & POLLIN) || (client_socket != _main_socketfd && _sessions[client_socket].status == _sessions[client_socket].S_NEW)) {
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
 			} else {
@@ -267,12 +275,13 @@ const std::vector<pollfd> &Server::getSockets() const {
 }
 
 void Server::RUN(std::vector<Server> servers) {
+  signal(SIGINT, signal_handler);
 	for (size_t i = 0; i < servers.size(); ++i) {
 		servers[i].listenPort(BACKLOG);
 		std::cout << BLUE << "Server " << i + 1 << " is listening on port "
 			<< servers[i].getPort() << RESET << std::endl;
 	}
-	while (true)
+	while (true && !g_sig)
 	{
 		for (size_t i = 0; i < servers.size(); ++i) {
 			try {
